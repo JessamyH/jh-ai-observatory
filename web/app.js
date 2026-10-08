@@ -17,7 +17,6 @@ const state = {
   sourceColors: {},
   customFrom: null,
   customTo: null,
-  tag: '',
   sourceMetric: 'turns',
   usageMetric: 'turns',
   usageMode: 'bars',
@@ -58,7 +57,6 @@ async function init() {
   assignSourceColors(state.meta.facets.sources);
   buildSourceChecks(state.meta.facets.sources);
   buildModelOptions(state.meta.facets.models);
-  buildTagOptions(state.meta.facets.tags);
   rebuildProjectOptions();
   renderMeta();
   renderPricingTable(state.meta.pricing);
@@ -303,11 +301,6 @@ function wireControls() {
     state.project = e.target.value;
     refresh();
   });
-  $('#tag').addEventListener('change', (e) => {
-    state.tag = e.target.value;
-    rebuildProjectOptions();
-    refresh();
-  });
   $('#granularity').addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -380,29 +373,16 @@ function fixSelectWidth(sel, labels) {
   sel.style.width = `${Math.min(280, Math.max(150, Math.ceil(textWidth + 48)))}px`;
 }
 
-/** Project dropdown, narrowed to the projects in the currently-selected tag. */
+/** Project dropdown, built from the projects in the store. */
 function rebuildProjectOptions() {
   const projects = (state.meta.facets.projects || []).filter((p) => p !== 'Unclassified');
-  const all = projects.filter(
-    (p) => p !== 'Unclassified' && (!state.tag || (state.meta.facets.projectTags || {})[p] === state.tag)
-  );
-  if (state.project && !all.includes(state.project)) state.project = ''; // stale selection
+  if (state.project && !projects.includes(state.project)) state.project = ''; // stale selection
   const sel = $('#project');
   sel.innerHTML = '';
   sel.appendChild(h('option', { value: '' }, 'All projects'));
-  all.forEach((p) => sel.appendChild(h('option', { value: p }, p)));
+  projects.forEach((p) => sel.appendChild(h('option', { value: p }, p)));
   sel.value = state.project;
   fixSelectWidth(sel, ['All projects', ...projects]);
-}
-
-function buildTagOptions(tags) {
-  if (!(tags || []).includes(state.tag)) state.tag = '';
-  $('#tag-filter').hidden = !tags || tags.length < 2;
-  tags = tags || [];
-  const sel = $('#tag');
-  sel.replaceChildren(h('option', { value: '' }, 'All tags'));
-  tags.forEach((t) => sel.appendChild(h('option', { value: t }, t)));
-  sel.value = state.tag;
 }
 
 function setupCurrency(display = {}) {
@@ -457,7 +437,6 @@ async function refresh() {
 
   if (state.model) params.set('model', state.model);
   if (state.project) params.set('project', state.project);
-  if (state.tag) params.set('tag', state.tag);
   if (state.sources) [...state.sources].forEach((s) => params.append('source', s));
 
   const summary = await getJSON('/api/summary?' + params.toString());
@@ -689,59 +668,13 @@ function renderSourceChart(s) {
     metric === 'tokens' ? 'Records without token usage are excluded.' : `${metric} are a real count for every source`;
 }
 
-// ---- 4. Usage by tag / project ------------------------------------------
-
-/** Stable colour per tag name (sorted order -> series slot). */
-function tagColor(tag) {
-  if (!tag) return 'var(--accent)';
-  const tags = (state.meta.facets.tags || []).slice().sort();
-  const i = tags.indexOf(tag);
-  return i < 0 ? 'var(--accent)' : `var(--series-${(i % 8) + 1})`;
-}
+// ---- 4. Usage by project ------------------------------------------------
 
 /** Stable colour per measured model id. */
 function modelColor(model) {
   const models = (state.meta.facets.models || []).filter((m) => m && m !== 'unknown').slice().sort();
   const i = models.indexOf(model);
   return i < 0 ? 'var(--text-muted)' : `var(--series-${(i % 8) + 1})`;
-}
-
-/** Shared renderer for the by-project and by-tag rank cards. */
-function renderGroupChart({ cardId, mountId, legendId, rows, tokenOnly, colorOf, onPick, legend, segmentsOf }) {
-  const list = foldRows((rows || []).filter((r) => (tokenOnly ? r.tokenAvailable : true)), 8);
-  const card = $('#' + cardId);
-  if (list.length < (tokenOnly ? 1 : 2)) {
-    card.hidden = true;
-    return;
-  }
-  card.hidden = false;
-
-  rankBar($('#' + mountId), {
-    color: (key) => colorOf(key),
-    rows: list.map((p) => ({
-      name: p.name,
-      primaryLabel: fmtCompact(p.measuredTokens.total),
-      segments: segmentsOf ? segmentsOf(p) : [{ key: p.name, value: p.measuredTokens.total }],
-      detail: `${fmtInt(p.turns)} turns · ${fmtInt(p.conversations)} sessions · ${
-        p.unpricedTurns >= p.turns ? 'Unpriced' : `${state.money(p.apiValue)} API value*`
-      }`,
-      tip: [
-        { k: 'Measured tokens', v: fmtInt(p.measuredTokens.total) },
-        { k: 'Turns', v: fmtInt(p.turns) },
-        { k: 'Sessions', v: fmtInt(p.conversations) },
-        { k: 'API value*', v: p.unpricedTurns >= p.turns ? 'Unpriced' : state.money(p.apiValue) },
-      ],
-      onClick: p.name === 'Other' || !onPick ? undefined : () => onPick(p.name),
-    })),
-  });
-
-  const lg = legendId && $('#' + legendId);
-  if (lg) {
-    lg.innerHTML = '';
-    (legend || []).forEach(({ label, color }) =>
-      lg.appendChild(h('span', { class: 'item' }, [swatch(color), document.createTextNode(label)]))
-    );
-  }
 }
 
 function renderProjectChart(s) {
@@ -770,22 +703,6 @@ function renderProjectChart(s) {
     color: (name) => `var(--series-${['Input', 'Output', 'Cache read', 'Cache write'].indexOf(name) + 1})`,
     valueFormat: fmtCompact,
     centerLabel: { top: fmtCompact(tokens.total), bottom: 'tokens' },
-  });
-}
-
-function renderTagChart(s) {
-  renderGroupChart({
-    cardId: 'tag-card',
-    mountId: 'chart-tags',
-    rows: s.byTag,
-    tokenOnly: false,
-    colorOf: (name) => tagColor(name),
-    onPick: (name) => {
-      state.tag = state.tag === name ? '' : name;
-      $('#tag').value = state.tag;
-      rebuildProjectOptions();
-      refresh();
-    },
   });
 }
 
@@ -1217,7 +1134,6 @@ async function savePathSettings() {
       state.meta = await getJSON('/api/meta');
       buildModelOptions(state.meta.facets.models);
       $('#model').value = state.model;
-      buildTagOptions(state.meta.facets.tags);
       rebuildProjectOptions();
       await refresh();
     } catch { $('#paths-status').textContent += ' Reload the page to update the dashboard.'; }

@@ -58,8 +58,6 @@ export function filterRecords(records, filters = {}) {
   const modelSet = setOrNull(filters.models);
   const sessSet = setOrNull(filters.sessions);
   const projSet = setOrNull(filters.projects);
-  const tagSet = setOrNull(filters.tags);
-  const tagOf = filters.tagOf || null;
 
   return records.filter((r) => {
     const t = new Date(r.timestamp).getTime();
@@ -68,7 +66,6 @@ export function filterRecords(records, filters = {}) {
     if (modelSet && !modelSet.has(r.model)) return false;
     if (sessSet && !sessSet.has(r.session)) return false;
     if (projSet && !projSet.has(projectOf(r))) return false;
-    if (tagSet && tagOf && !tagSet.has(tagOf(r))) return false;
     if (filters.measuredOnly && !r.measured) return false;
     return true;
   });
@@ -98,39 +95,6 @@ export function projectOf(r) {
   if (!s || PROJECT_NOISE.has(s.toLowerCase())) return UNCLASSIFIED;
   if (/^\d+$/.test(s)) return UNCLASSIFIED; // e.g. a numeric Windows user folder
   return s;
-}
-
-function globToRegex(pattern) {
-  const escaped = String(pattern).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-  return new RegExp(`^${escaped}$`, 'i');
-}
-
-/**
- * Build a record -> tag resolver from `config.tags`, e.g.
- *   { "$default": "personal", "work": ["*Work*", "client-*"] }
- * Non-`$` keys are tag names mapped to glob patterns matched (case-insensitive)
- * against BOTH the project name and the full working-directory path; first match
- * wins; anything unmatched gets `$default` (or "untagged"). Returns null when no
- * usable rules are configured, which turns the whole tag dimension off.
- */
-export function makeTagResolver(tagConfig) {
-  if (!tagConfig || typeof tagConfig !== 'object') return null;
-  const fallback = tagConfig.$default || 'untagged';
-  const rules = Object.entries(tagConfig)
-    .filter(([k]) => !k.startsWith('$'))
-    .map(([tag, pats]) => [tag, (Array.isArray(pats) ? pats : [pats]).map(globToRegex)]);
-  if (!rules.length) return null;
-
-  const pick = (...targets) => {
-    for (const [tag, regexes] of rules) {
-      if (regexes.some((re) => targets.some((t) => t && re.test(t)))) return tag;
-    }
-    return fallback;
-  };
-  const resolve = (record) => pick(projectOf(record), record && record.meta && record.meta.cwd);
-  resolve.forProject = (proj) => pick(proj);
-  resolve.tags = [...new Set([...rules.map(([t]) => t), fallback])];
-  return resolve;
 }
 
 /** A turn's token counts are real only when the source actually reports them. */
@@ -177,10 +141,9 @@ function addInto(acc, r) {
  * Full summary for the dashboard.
  * @returns {{ granularity, totals, buckets:[], bySource:[], byModel:[], sources:[] }}
  */
-export function summarize(records, { granularity = 'daily', filters = {}, tags = null } = {}) {
+export function summarize(records, { granularity = 'daily', filters = {} } = {}) {
   if (!GRANULARITIES.has(granularity)) granularity = 'daily';
-  const tagOf = makeTagResolver(tags);
-  const rows = filterRecords(records, { ...filters, tagOf });
+  const rows = filterRecords(records, filters);
 
   const sources = [...new Set(rows.map((r) => r.source))].sort();
 
@@ -229,20 +192,14 @@ export function summarize(records, { granularity = 'daily', filters = {}, tags =
   const bySource = rollup(groupBy(rows, (r) => r.source));
   const byModel = rollup(groupBy(rows, (r) => r.model));
 
-  // A project's tag from its real records (which carry the cwd), so the by-project
-  // and by-tag views can never disagree.
-  const projectTag = {};
-  if (tagOf) for (const r of rows) projectTag[projectOf(r)] = tagOf(r);
   const projectGroups = groupBy(rows, projectOf);
   const byProject = rollup(projectGroups).map((row) => ({
     ...row,
-    tag: tagOf ? projectTag[row.name] || tagOf.forProject(row.name) : null,
     models: [...groupBy(projectGroups.get(row.name), (r) => r.model)].map(([model, items]) => ({
       model,
       tokens: items.reduce((sum, r) => sum + (hasMeasuredTokens(r) ? r.tokens.total : 0), 0),
     })).filter((m) => m.tokens > 0).sort((a, b) => b.tokens - a.tokens),
   }));
-  const byTag = tagOf ? rollup(groupBy(rows, tagOf)) : [];
 
   const totals = blankTotals();
   for (const r of rows) addInto(totals, r);
@@ -250,7 +207,7 @@ export function summarize(records, { granularity = 'daily', filters = {}, tags =
   totals.activeDays = new Set(rows.map((r) => bucketKey(r, 'daily').key)).size;
   totals.conversations = new Set(rows.map((r) => r.source + ':' + r.session)).size;
 
-  return { granularity, filters, totals, buckets, bySource, byModel, byProject, byTag, sources };
+  return { granularity, filters, totals, buckets, bySource, byModel, byProject, sources };
 }
 
 function rollup(map) {
@@ -273,16 +230,11 @@ function rollup(map) {
 }
 
 /** Distinct dimension values for building filter controls. */
-export function facets(records, tags = null) {
-  const tagOf = makeTagResolver(tags);
-  const projectTags = {};
-  if (tagOf) for (const r of records) projectTags[projectOf(r)] = tagOf(r);
+export function facets(records) {
   return {
     sources: [...new Set(records.map((r) => r.source))].sort(),
     models: [...new Set(records.map((r) => r.model))].sort(),
     projects: [...new Set(records.map(projectOf))].sort(),
-    tags: tagOf ? [...new Set(records.map(tagOf))].sort() : [],
-    projectTags, // { projectName: tag } — for narrowing the project filter by tag
     range: dateRange(records),
     count: records.length,
   };

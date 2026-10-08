@@ -23,7 +23,6 @@ CLI or the launcher. It holds local paths, so it is git-ignored.
 - `pricingOverrides` — override or add model prices, USD per 1M tokens. See
   `src/core/pricing.js` for the built-in table and shape.
 - `server.port` / `server.host` / `server.autoIngestMinutes`.
-- `tags` — group usage as `personal` / `work` / … (see below).
 - `projectRoots` — optional code-container folders to track for Claude Code and
   Codex. The root itself is excluded; its first child folder is the project name.
 
@@ -44,27 +43,6 @@ the selected directories. Other history is retained in the store but hidden.
 Without configured directories, collection is paused and the dashboard prompts
 you to add directories. Existing history is hidden until a directory is selected. With
 `--no-ingest`, saving updates configuration but does not collect usage.
-
-The dashboard initially shows **All tags**, without preferring `personal`.
-
-## Tags (`config.json` → `tags`)
-
-Split usage into groups without touching the data:
-
-```jsonc
-"tags": {
-  "$default": "personal",
-  "work": ["*Work*", "client-*"]
-}
-```
-
-Non-`$` keys are tag names; each lists glob patterns (`*` = anything, case-
-insensitive) matched against **both** the project name and the full working-
-directory path. First match wins; anything unmatched gets `$default`. Records without a matching path use `$default` too.
-
-With tags configured, the dashboard gets a **Tag** filter and a **Usage by tag**
-card, and `node observatory.js stats` prints a *By tag* section. Remove the block
-to turn the dimension off entirely.
 
 ## Codex
 
@@ -148,7 +126,7 @@ models remain distinct from measured zero usage.
 
 ```
 observatory.js            CLI entry (ingest / serve / stats / sources)
-config.example.json       template for config.json (paths, pricing overrides, tags, server)
+config.example.json       template for config.json (paths, pricing overrides, server)
 src/
   core/
     schema.js             UsageRecord shape + validation
@@ -204,6 +182,6 @@ works with no further changes.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/meta` | store timestamp, freshness settings, model pricing, filter facets |
-| `GET /api/summary?granularity=&from=&to=&source=&model=&project=&tag=` | totals, time buckets, per-source / per-model / per-project / per-tag rollups |
+| `GET /api/summary?granularity=&from=&to=&source=&model=&project=` | totals, time buckets, per-source / per-model / per-project rollups |
 | `GET /api/records?…&limit=&offset=` | filtered raw records, newest first |
 | `POST /api/ingest` | collect new usage now (what the ⟳ button calls) |
