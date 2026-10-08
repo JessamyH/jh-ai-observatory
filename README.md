@@ -11,14 +11,15 @@ See your Claude Code and Codex usage by model, project and day, with token count
 
 <p align="center">
   <img width="48%" alt="Overview" src="docs/images/overview.png" />
-  <img width="48%" alt="Usage by model, source and project" src="docs/images/distributions.png" />
-</p>
-<p align="center">
   <img width="48%" alt="Dark theme" src="docs/images/dark.png" />
-  <img width="48%" alt="Settings and model pricing" src="docs/images/settings.png" />
 </p>
 <p align="center">
-  <img width="72%" alt="Breakdown table" src="docs/images/breakdown.png" />
+  <img width="48%" alt="Usage by model, source and project" src="docs/images/breakdowns.png" />
+  <img width="48%" alt="Breakdown table" src="docs/images/table.png" />
+</p>
+<p align="center">
+  <img width="48%" alt="Settings" src="docs/images/settings.png" />
+  <img width="48%" alt="Model pricing and API cost calculator" src="docs/images/pricing.png" />
 </p>
 
 <p align="center"><sub>All screenshots use the built-in mock data. Every number and project name is generated.</sub></p>
