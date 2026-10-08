@@ -39,7 +39,7 @@ JH AI Observatory is intentionally strict about its numbers.
 
 #### Overview
 
-Turns, conversations, measured tokens and active days at a glance, plus a usage-over-time chart you can switch between turns and tokens, daily, weekly or monthly, and bars or cumulative.
+Turns, conversations, measured tokens, API value\* and active days at a glance, plus a usage-over-time chart you can switch between turns and tokens, daily, weekly or monthly, and bars or cumulative.
 
 #### Breakdowns
 

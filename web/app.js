@@ -487,6 +487,12 @@ function renderKPIs(t) {
         ? `${fmtCompact(mt.input)} in · ${fmtCompact(mt.output)} out · ${fmtCompact(mt.cacheRead + mt.cacheWrite)} cache`
         : 'no source in range reports tokens',
     },
+    {
+      label: 'API value*',
+      value: mt.total && t.unpricedTurns < t.measuredTurns ? state.money(t.apiValue) : DASH,
+      sub: '* at list API rates · not a bill',
+      title: 'Measured tokens priced at reference API rates. Not what you were charged.',
+    },
     { label: 'Active days', value: fmtInt(t.activeDays), sub: 'days with activity' },
   ]);
 }
@@ -495,7 +501,7 @@ function fillKpiRow(row, kpis) {
   row.innerHTML = '';
   kpis.forEach((k) => {
     row.appendChild(
-      h('div', { class: 'kpi' }, [
+      h('div', { class: 'kpi', ...(k.title ? { title: k.title } : {}) }, [
         h('div', { class: 'label' }, k.label),
         h('div', { class: 'value' + (k.hero ? ' hero' : '') }, k.value),
         h('div', { class: 'sub' }, k.sub),
