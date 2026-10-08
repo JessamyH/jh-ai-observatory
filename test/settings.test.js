@@ -11,14 +11,14 @@ test('multiple path selections persist, normalize and preserve other settings; i
     await mkdir(path.join(baseDir, 'first'));
     await mkdir(path.join(baseDir, 'second'));
     const configPath = path.join(baseDir, 'config.json');
-    const config = { server: { port: 4317 }, tags: { $default: 'work' }, projectRoots: [] };
+    const config = { server: { port: 4317 }, display: { currency: 'AUD' }, projectRoots: [] };
     await writeFile(configPath, JSON.stringify(config));
     const settings = pathSettings({ config, configPath, baseDir });
     const result = await settings.save({ projectRoots: ['first', 'second', './first'], availableRoots: ['first', 'second'] });
     assert.deepEqual(result.projectRoots, ['first', 'second'].map((p) => path.join(baseDir, p)));
     const disk = JSON.parse(await readFile(configPath, 'utf8'));
     assert.deepEqual(disk.server, { port: 4317 });
-    assert.deepEqual(disk.tags, { $default: 'work' });
+    assert.deepEqual(disk.display, { currency: 'AUD' });
     assert.deepEqual(config.projectRoots, disk.projectRoots);
     await settings.save({ projectRoots: ['second'], availableRoots: ['first', 'second'] });
     assert.equal(settings.get().availableRoots.length, 2);

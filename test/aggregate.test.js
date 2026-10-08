@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bucketKey, summarize, projectOf, makeTagResolver, UNCLASSIFIED } from '../src/core/aggregate.js';
+import { bucketKey, summarize, projectOf, UNCLASSIFIED } from '../src/core/aggregate.js';
 import { trackedProject } from '../src/core/util.js';
 import { measuredTurn, unavailableTurn } from './helpers.js';
 
@@ -132,50 +132,4 @@ test('date filters bound the range inclusively', () => {
     filters: { from: localAt(2026, 8, 10, 0), to: localAt(2026, 8, 20, 23) },
   });
   assert.equal(s.totals.turns, 1);
-});
-
-// ---- tags ---------------------------------------------------------------
-
-test('tag resolver matches project name and full cwd path, case-insensitively', () => {
-  const tagOf = makeTagResolver({ $default: 'personal', work: ['*Work*', 'client-*'] });
-  assert.equal(tagOf({ meta: { project: 'code', cwd: 'e:\\Work\\code' } }), 'work');
-  assert.equal(tagOf({ meta: { project: 'docs-gen', cwd: 'E:\\work\\code\\docs-gen' } }), 'work');
-  assert.equal(tagOf({ meta: { project: 'debrief', cwd: 'e:\\side-project\\debrief' } }), 'personal');
-  assert.equal(tagOf({ meta: {} }), 'personal', 'unmatched -> default');
-  assert.equal(tagOf.forProject('Work'), 'work');
-});
-
-test('no tag config turns the dimension off', () => {
-  assert.equal(makeTagResolver(null), null);
-  assert.equal(makeTagResolver({ $default: 'x' }), null, 'needs at least one rule');
-  const s = summarize([measuredTurn({ id: 'a' })]);
-  assert.deepEqual(s.byTag, []);
-});
-
-test('byTag rolls up, and the tag filter narrows the whole summary', () => {
-  const tags = { $default: 'personal', work: ['*Work*'] };
-  const rows = [
-    measuredTurn({ id: 'a', project: 'debrief', input: 100, output: 50, cost: 0.4 }),
-    measuredTurn({ id: 'b', project: 'code', input: 200, output: 20, cost: 0.9 }), // cwd default 'demo' — not work
-    { ...measuredTurn({ id: 'c', input: 10, output: 5, cost: 0.1 }), meta: { project: 'code', cwd: 'e:\\Work\\code' } },
-  ];
-  const all = summarize(rows, { tags });
-  const byTag = Object.fromEntries(all.byTag.map((r) => [r.name, r]));
-  assert.equal(byTag.work.turns, 1);
-  assert.equal(byTag.personal.turns, 2);
-
-  const workOnly = summarize(rows, { tags, filters: { tags: ['work'] } });
-  assert.equal(workOnly.totals.turns, 1);
-  assert.equal(workOnly.totals.apiValue, 0.1);
-});
-
-test('byProject rows carry the tag from their real records', () => {
-  const tags = { $default: 'personal', work: ['*Work*'] };
-  const rows = [
-    { ...measuredTurn({ id: 'a' }), meta: { project: 'code', cwd: 'e:\\Work\\code' } },
-    measuredTurn({ id: 'b', project: 'debrief' }),
-  ];
-  const byProject = Object.fromEntries(summarize(rows, { tags }).byProject.map((r) => [r.name, r.tag]));
-  assert.equal(byProject['code'], 'work');
-  assert.equal(byProject['debrief'], 'personal');
 });

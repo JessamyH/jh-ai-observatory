@@ -49,9 +49,9 @@ See where usage goes by model (split into input, output, cache read and cache wr
 
 A per-period table of turns, tokens and API value, with totals.
 
-#### Filters & Tags
+#### Filters
 
-Filter by date range, project, model and source. Optionally group projects into tags such as `personal` and `work` with simple glob rules.
+Filter by date range, project, model and source.
 
 ### 💲 Pricing
 
@@ -131,7 +131,7 @@ npm test             # run the test suite
 
 ## 📚 Documentation
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for configuration, tags, pricing rules, the data model, architecture, the JSON API, and how to add a new source.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for configuration, pricing rules, the data model, architecture, the JSON API, and how to add a new source.
 
 ## 📄 License
 

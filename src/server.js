@@ -71,7 +71,6 @@ export async function startServer({
   port = 4317,
   host = '127.0.0.1',
   display = null,
-  tags = null,
   pricingOverrides = null,
   ingest = null, // async () => ingest result; enables auto-refresh + POST /api/ingest
   autoIngestMinutes = 0,
@@ -162,7 +161,7 @@ export async function startServer({
       }
       if (url.pathname.startsWith('/api/')) {
         const store = await cache.get();
-        await handleApi(url, res, store, { display, tags, pricing, autoIngestMinutes, mock, projectRoots: settings?.get().projectRoots || [] });
+        await handleApi(url, res, store, { display, pricing, autoIngestMinutes, mock, projectRoots: settings?.get().projectRoots || [] });
       } else {
         await handleStatic(url, res);
       }
@@ -221,9 +220,8 @@ async function handleApi(url, res, store, opts = {}) {
       storePath: store.filePath,
       autoIngestMinutes: opts.autoIngestMinutes || 0,
       display: { currency: display.currency || 'USD', rates },
-      tags: opts.tags || null,
       pricing,
-      facets: facets(records, opts.tags),
+      facets: facets(records),
     });
   }
 
@@ -231,7 +229,7 @@ async function handleApi(url, res, store, opts = {}) {
 
   if (url.pathname === '/api/summary') {
     const granularity = url.searchParams.get('granularity') || 'daily';
-    const summary = summarize(records, { granularity, filters, tags: opts.tags });
+    const summary = summarize(records, { granularity, filters });
     return send(res, 200, summary);
   }
 
@@ -259,7 +257,6 @@ function parseFilters(sp) {
     sources: sp.getAll('source'),
     models: sp.getAll('model'),
     projects: sp.getAll('project'),
-    tags: sp.getAll('tag'),
     // kept for API compatibility; the dashboard no longer offers this toggle
     measuredOnly: sp.get('measuredOnly') === '1',
   };

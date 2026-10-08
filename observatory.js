@@ -52,7 +52,6 @@ async function main() {
         storePath,
         granularity: args.granularity || 'daily',
         display: config.display,
-        tags: config.tags,
       });
     case 'sources':
       console.log('Registered sources:');
@@ -120,7 +119,6 @@ async function cmdServe({ configPath, config, baseDir, storePath, port, noIngest
     port: port || srv.port || 4317,
     host: srv.host || '127.0.0.1',
     display: config.display || null,
-    tags: config.tags || null,
     pricingOverrides: config.pricingOverrides || null,
     log: (m) => console.log(m),
   });
@@ -151,14 +149,13 @@ async function cmdServeMock({ config, port }) {
     port: port || 4318,
     host: srv.host || '127.0.0.1',
     display: config.display || null,
-    tags: config.tags || null,
     pricingOverrides: config.pricingOverrides || null,
     log: (m) => console.log(m),
   });
   console.log('  MOCK DATA - generated demo usage, not your real logs');
 }
 
-async function cmdStats({ storePath, granularity, display, tags }) {
+async function cmdStats({ storePath, granularity, display }) {
   const store = new Store(storePath);
   await store.load();
   if (store.records.length === 0) {
@@ -169,7 +166,7 @@ async function cmdStats({ storePath, granularity, display, tags }) {
   const rate = (display && display.rates && display.rates[cur]) || 1;
   const money = (usd) => `${cur} ${(usd * rate).toFixed(2)}`;
 
-  const s = summarize(store.records, { granularity, tags });
+  const s = summarize(store.records, { granularity });
   const t = s.totals;
 
   console.log(`Date range:   ${s.buckets[0]?.label} -> ${s.buckets.at(-1)?.label}  (${t.activeDays} active days)`);
@@ -194,16 +191,9 @@ async function cmdStats({ storePath, granularity, display, tags }) {
   for (const row of s.byModel.filter((r) => r.tokenAvailable)) {
     console.log(`  ${row.name.padEnd(22)} ${val(row)}   ${tok(row)}`);
   }
-  if (s.byTag && s.byTag.length) {
-    console.log('\nBy tag:');
-    for (const row of s.byTag) {
-      console.log(`  ${row.name.padEnd(22)} ${val(row)}   ${tok(row)}   ${row.turns} turns`);
-    }
-  }
   console.log('\nBy project (measured only):');
   for (const row of s.byProject.filter((r) => r.tokenAvailable).slice(0, 10)) {
-    const tg = row.tag ? `  [${row.tag}]` : '';
-    console.log(`  ${row.name.padEnd(22)} ${val(row)}   ${tok(row)}   ${row.turns} turns${tg}`);
+    console.log(`  ${row.name.padEnd(22)} ${val(row)}   ${tok(row)}   ${row.turns} turns`);
   }
   console.log(`\nLast ${Math.min(s.buckets.length, 14)} ${granularity} buckets:`);
   for (const b of s.buckets.slice(-14)) {
