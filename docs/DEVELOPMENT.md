@@ -105,8 +105,8 @@ to load the filtered totals. The **Breakdown** table is collapsed by default.
 ## Freshness and performance
 
 Ingest is **incremental**: every source file is fingerprinted by `{ mtimeMs, size }`
-in the store, and unchanged files are skipped entirely — a full pass over ~11k
-turns and a 115 MB export drops from ~870 ms to ~220 ms. The server keeps the
+in the store, and unchanged files are skipped entirely, so a refresh only parses
+logs that changed since the last run. The server keeps the
 parsed store in memory and re-reads it only when the file changes, so filtering
 doesn't re-parse megabytes of JSON.
 
@@ -133,7 +133,7 @@ A **measured** turn (CLI/API):
   "modelMeasured": true,              // the model id came from the provider's logs
   "pricingModel": "claude-sonnet-5",  // whose rates produced `cost`
   "tokenAvailability": "measured",    // real counts, not a guess
-  "session": "e8f65aa2-…",
+  "session": "00000000-…",
   "tokens": { "input": 2, "output": 1328, "cacheRead": 24025, "cacheWrite": 9297, "total": 33652 },
   "cost": { "amount": 0.0721, "currency": "USD", "estimated": false },
   "measured": true,
