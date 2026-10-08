@@ -1,0 +1,11 @@
+# Local configuration (copied from config.example.json on first run)
+config.json
+config.json.tmp
+
+# Collected usage data and runtime logs
+data/
+*.log
+
+# OS / tooling
+.DS_Store
+node_modules/

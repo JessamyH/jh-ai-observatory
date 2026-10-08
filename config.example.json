@@ -1,0 +1,27 @@
+{
+  "sources": {
+    "claude-code": {
+      "enabled": true,
+      "projectsDir": null
+    },
+    "codex": {
+      "enabled": true
+    }
+  },
+  "pricingOverrides": {},
+  "server": {
+    "host": "127.0.0.1",
+    "port": 4317,
+    "autoIngestMinutes": 5
+  },
+  "projectRoots": [],
+  "availableProjectRoots": [],
+  "display": {
+    "currency": "USD",
+    "rates": {
+      "AUD": 1.4235,
+      "CNY": 6.7133
+    },
+    "$note": "1 USD = N units; rates as of 2026-09-25, edit to update"
+  }
+}

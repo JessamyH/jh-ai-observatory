@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#3975ed" />
+  <title>JH AI Observatory</title>
+  <link rel="icon" href="/observatory.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-main">
+      <img class="brand-icon" src="/observatory.svg" alt="" width="38" height="38" />
+      <div>
+        <h1>JH&nbsp;AI&nbsp;Observatory</h1>
+        <p class="tagline">Your personal AI command center.</p>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <span id="mock-badge" class="mock-badge" title="Generated demo usage, not your real logs" hidden>Mock data</span>
+      <span id="generated-at" class="freshness">&nbsp;</span>
+      <button id="refresh" type="button" class="ghost-btn" title="Collect new usage now" aria-label="Collect new usage now">⟳</button>
+      <button id="settings-open" type="button" class="ghost-btn icon-button" title="Settings" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3h5l.6 2.4 2 .9 2.2-.7 2.5 4.3-1.7 1.7v2.3l1.7 1.7-2.5 4.3-2.2-.7-2 .9-.6 2.4h-5l-.6-2.4-2-.9-2.2.7-2.5-4.3 1.7-1.7v-2.3L2.2 9.9l2.5-4.3 2.2.7 2-.9z"/><circle cx="12" cy="12.7" r="3"/></svg></button>
+      <button id="theme-toggle" type="button" class="ghost-btn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section class="overview-heading" aria-labelledby="overview-title">
+      <div>
+        <p class="eyebrow"><span></span> THE BIG PICTURE</p>
+        <h2 id="overview-title">Your AI, <em>in perspective.</em></h2>
+        <p class="overview-description">A clearer view of your conversations, models, and everyday usage.</p>
+      </div>
+      <div class="overview-mark" aria-hidden="true">
+        <div class="orbit orbit-outer"></div><div class="orbit orbit-inner"></div>
+        <span class="orbit-core">JH<span>OBSERVATORY</span></span>
+        <i class="orbit-dot dot-one"></i><i class="orbit-dot dot-two"></i>
+      </div>
+    </section>
+    <section id="setup-prompt" class="card" hidden>
+      <h2>Choose your project directories</h2>
+      <p>Add at least one directory to start collecting and viewing usage. Your existing history stays saved.</p>
+      <button id="setup-open" class="setup-button" type="button">Add directories</button>
+    </section>
+    <section class="filters" aria-label="Filters">
+      <div class="filter-group">
+        <label for="range">Range</label>
+        <select id="range">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="mtd">Month to date</option>
+          <option value="all">All time</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <div class="filter-group" id="custom-range">
+        <label for="date-from">Custom range</label>
+        <div class="date-inputs">
+          <input type="date" id="date-from" aria-label="From date" />
+          <span aria-hidden="true">&rarr;</span>
+          <input type="date" id="date-to" aria-label="To date" />
+        </div>
+      </div>
+
+
+      <div class="filter-group" id="tag-filter" hidden>
+        <label for="tag">Tag</label>
+        <select id="tag"><option value="">All tags</option></select>
+      </div>
+
+      <div class="filter-group">
+        <label for="project">Project</label>
+        <select id="project"><option value="">All projects</option></select>
+      </div>
+
+      <div class="filter-group">
+        <label for="model">Model</label>
+        <select id="model"><option value="">All models</option></select>
+      </div>
+
+
+
+      <div class="filter-group grow">
+        <label>Sources</label>
+        <div id="sources" class="checks"></div>
+      </div>
+    </section>
+
+    <section id="kpis" class="kpi-row" aria-label="Usage totals"></section>
+    <p class="kpi-note muted" id="kpi-note"></p>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Usage over time</h2>
+        <div class="card-controls">
+          <div id="usage-metric" class="segmented" role="group" aria-label="Metric">
+            <button type="button" data-value="turns" class="active">Turns</button>
+            <button type="button" data-value="tokens">Measured tokens</button>
+          </div>
+          <div id="granularity" class="segmented" role="group" aria-label="Granularity">
+            <button type="button" data-value="daily" class="active">Daily</button>
+            <button type="button" data-value="weekly">Weekly</button>
+            <button type="button" data-value="monthly">Monthly</button>
+          </div>
+          <div id="usage-mode" class="segmented" role="group" aria-label="Display">
+            <button type="button" data-value="bars" class="active">Bars</button>
+            <button type="button" data-value="cumulative">Cumulative</button>
+          </div>
+        </div>
+      </div>
+      <p class="card-sub" id="usage-note"></p>
+      <div id="chart-usage" class="chart"></div>
+      <div id="legend-usage" class="legend"></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <div class="card-head"><h2>Measured usage by model</h2></div>
+        <p class="card-sub" id="models-note"></p>
+        <div id="chart-models" class="chart"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Usage by source</h2>
+          <div id="source-metric" class="segmented" role="group" aria-label="Metric">
+            <button type="button" data-value="turns" class="active">Turns</button>
+            <button type="button" data-value="conversations">Conversations</button>
+            <button type="button" data-value="tokens">Measured tokens</button>
+          </div>
+        </div>
+        <p class="card-sub" id="sources-note"></p>
+        <div id="chart-sources" class="chart"></div>
+      </section>
+    </div>
+
+    <div class="grid-2 compact-distributions" id="usage-groups-card">
+      <section class="card" id="project-card">
+        <div class="card-head"><h2>Usage by project</h2></div>
+        <p class="card-sub">Share of measured tokens by local project</p>
+        <div id="chart-projects" class="chart"></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2>Token composition</h2></div>
+        <p class="card-sub">Input, output and cache share of measured tokens</p>
+        <div id="chart-token-composition" class="chart"></div>
+      </section>
+    </div>
+
+    <details class="card collapsible" id="insights-card">
+      <summary class="card-head"><span class="card-title">AI usage insights</span><span class="insights-badge">Powered by Claude</span></summary>
+      <div class="insights-body">
+        <div class="insights-intro">
+          <div><h3>A closer look at your AI usage</h3><p>Model mix, project focus and practical next steps.</p></div>
+          <span class="insights-scope">Current filters</span>
+        </div>
+        <div class="insights-actions">
+          <p>Analyze the current filters with Claude.</p>
+          <div class="insights-buttons"><button type="button" id="insights-generate">Generate insights &rarr;</button></div>
+        </div>
+        <p id="insights-status" role="status"></p>
+        <div id="insights-result" aria-live="polite"></div>
+      </div>
+    </details>
+
+    <section class="card collapsible" id="breakdown-card">
+      <button type="button" class="card-head breakdown-toggle" id="breakdown-toggle" aria-expanded="false" aria-controls="breakdown-rows">
+        <span class="card-title">Breakdown</span>
+        <span class="card-sub" id="table-note"></span>
+      </button>
+      <div class="table-wrap">
+        <table id="breakdown">
+          <thead></thead>
+          <tbody id="breakdown-rows" hidden></tbody>
+        </table>
+      </div>
+      <p class="card-sub table-footnote">
+        <strong>API value*</strong> is calculated from measured tokens and configured model prices.
+        It is not the amount billed.
+      </p>
+    </section>
+
+    <p id="empty-state" class="empty" hidden>
+      No records for this filter. Run <code>node observatory.js ingest</code> and reload.
+    </p>
+
+  </main>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="settings-head"><h2 id="settings-title">Settings</h2><button id="settings-close" type="button" class="ghost-btn icon-button" title="Close settings" aria-label="Close settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <section class="settings-section">
+      <h3>Detection directories</h3>
+      <p class="card-sub">Add the folders containing your projects. Select one or more to collect Claude Code and Codex usage. Only selected directories appear in the dashboard. Other history is retained but hidden.</p>
+      <label for="paths-input" class="card-sub">Directory path (absolute, relative to config, or ~/)</label>
+      <div class="path-entry"><input id="paths-input" placeholder="~/Developer" autocomplete="off" /><button id="paths-add" type="button">Add directory</button></div>
+      <div id="paths-list" class="paths-list"></div>
+      <button id="paths-save" type="button" disabled>Save &amp; collect</button>
+      <p id="paths-status" class="card-sub" role="status" aria-live="polite"></p>
+    </section>
+    <section class="settings-section">
+      <h3>Claude API</h3>
+      <div class="insights-controls">
+        <label>API key<input id="insights-key" type="password" autocomplete="off" placeholder="Enter your Claude API key" /></label>
+        <label>Model<select id="insights-model"></select></label>
+      </div>
+      <label class="insights-custom" id="insights-model-custom-wrap" hidden>Custom model ID<input id="insights-model-custom" spellcheck="false" autocomplete="off" placeholder="claude-..." /></label>
+      <p id="insights-model-status" class="card-sub" role="status" aria-live="polite"></p>
+      <div class="insights-actions"><p>Saved in this browser. Generating sends usage summaries and project names to Anthropic. API charges apply.</p><div class="insights-buttons"><button type="button" id="insights-clear">Clear key</button></div></div>
+    </section>
+    <section class="settings-section"><h3>Display</h3>
+      <div class="filter-group">
+        <label for="currency">Currency</label>
+        <select id="currency"></select>
+      </div>
+    </section>
+    <details class="card collapsible" id="pricing-card" hidden>
+      <summary class="card-head">
+        <span class="card-title">Model pricing</span>
+        <span class="card-sub" id="pricing-subtitle"></span>
+      </summary>
+      <div class="table-wrap">
+        <table id="pricing-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th class="num">Input</th><th class="num">Output</th>
+              <th class="num">Cached input</th><th class="num">Cache write</th>
+              <th aria-label="details"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="card-sub table-footnote">Reference API pricing only &mdash; not your subscription charge.</p>
+
+      <details class="calc" id="calc-card">
+        <summary class="calc-summary">API cost calculator</summary>
+        <p class="card-sub">Estimates API pay-as-you-go cost using configured prices. It is not your subscription charge.</p>
+        <div class="calc-grid">
+          <label>Model<select id="calc-model"></select></label>
+          <label>New input<input id="calc-input" type="text" inputmode="decimal" placeholder="e.g. 100k" autocomplete="off" /></label>
+          <label>Output<input id="calc-output" type="text" inputmode="decimal" placeholder="e.g. 20k" autocomplete="off" /></label>
+          <label>Cached input<input id="calc-cached" type="text" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+          <label>Cache write<input id="calc-cachew" type="text" inputmode="decimal" placeholder="0" autocomplete="off" /></label>
+        </div>
+        <div class="calc-actions">
+          <button type="button" id="calc-use">Use current usage</button>
+          <button type="button" id="calc-clear" class="ghost-btn sm" aria-label="Clear" title="Clear">&times;</button>
+        </div>
+        <div id="calc-result" class="calc-result"></div>
+      </details>
+    </details>
+
+  </dialog>
+
+  <footer class="footer">
+    <p>
+      This dashboard tracks <strong>usage</strong> collected automatically from local logs.
+      <strong>Measured</strong> records carry real provider token counts (Claude Code, Codex).
+    </p>
+    <p>
+      <strong>API-equivalent value</strong> prices every turn at list API rates &mdash; an analysis
+      reference, not a bill.
+    </p>
+    <p class="muted" id="store-path"></p>
+  </footer>
+
+  <div id="tooltip" class="tooltip" hidden></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
