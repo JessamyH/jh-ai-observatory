@@ -149,7 +149,9 @@ export function stackedBar(mount, opts) {
     h('line', { class: 'axis-line', x1: m.left, x2: m.left + plotW, y1: y(0), y2: y(0) })
   );
 
-  const labelEvery = n <= 14 ? 1 : Math.ceil(n / 12);
+  // A full date label is ~60 units wide at 11px; keep at least 72 units per label.
+  const maxLabels = Math.max(1, Math.floor(plotW / 72));
+  const labelEvery = Math.ceil(n / maxLabels);
 
   buckets.forEach((b, i) => {
     const cx = m.left + band * i + band / 2;
