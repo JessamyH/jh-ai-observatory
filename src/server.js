@@ -68,13 +68,16 @@ const CONTENT_TYPES = {
 export async function startServer({
   storePath,
   settings = null,
-  port = 4317,
+  port = 5858,
   host = '127.0.0.1',
   display = null,
   pricingOverrides = null,
   ingest = null, // async () => ingest result; enables auto-refresh + POST /api/ingest
   autoIngestMinutes = 0,
   mock = false, // serving generated demo data (flagged in /api/meta)
+  // async () => void; runs only after the port is bound, so a second instance
+  // that loses the port race exits without touching the store.
+  prepare = null,
   log = () => {},
 }) {
   const rates = (display && display.rates) || { USD: 1 };
@@ -102,7 +105,13 @@ export async function startServer({
     return inFlight;
   };
 
+  // Requests that arrive while prepare() runs wait for it rather than
+  // reading a store that is still being written.
+  let markReady;
+  const ready = new Promise((r) => { markReady = r; });
+
   const server = createServer(async (req, res) => {
+    await ready;
     try {
       const url = new URL(req.url, `http://${req.headers.host}`);
       if (url.pathname === '/api/settings/paths') {
@@ -171,22 +180,46 @@ export async function startServer({
   });
 
   let timer = null;
-  if (ingest && autoIngestMinutes > 0) {
+  const startTimer = () => {
+    if (!ingest || autoIngestMinutes <= 0) return;
     timer = setInterval(() => {
       if (settingsBusy) return;
       runIngestOnce().catch((err) => log(`  auto-ingest failed: ${err.message}`));
     }, autoIngestMinutes * 60_000);
     timer.unref?.();
-  }
+  };
 
-  return new Promise((resolve) => {
+  await new Promise((resolve) => {
+    server.once('error', onStartError);
+    function onStartError(err) {
+      if (timer) clearInterval(timer);
+      if (err.code === 'EADDRINUSE') {
+        process.stderr.write(
+          `Port ${port} is already in use.\n` +
+          `  Already running? Open http://${host}:${port}\n` +
+          `  Or start on another port: node observatory.js serve --port <n>\n`,
+        );
+      } else {
+        process.stderr.write(`Server failed to start: ${err.message}\n`);
+      }
+      process.exit(1);
+    }
     server.listen(port, host, () => {
-      log(`JH AI Observatory -> http://${host}:${port}`);
-      if (ingest && autoIngestMinutes > 0) log(`  auto-ingest every ${autoIngestMinutes} min`);
-      server.on('close', () => timer && clearInterval(timer));
-      resolve(server);
+      server.off('error', onStartError);
+      resolve();
     });
   });
+
+  try {
+    if (prepare) await prepare();
+  } finally {
+    markReady();
+  }
+  startTimer();
+  server.on('close', () => timer && clearInterval(timer));
+  log(`JH AI Observatory -> http://${host}:${port}`);
+  if (ingest && autoIngestMinutes > 0) log(`  auto-ingest every ${autoIngestMinutes} min`);
+  return server;
 }
 
 async function handleApi(url, res, store, opts = {}) {
@@ -216,6 +249,8 @@ async function handleApi(url, res, store, opts = {}) {
     return send(res, 200, {
       generatedAt: store.generatedAt,
       needsSetup: !opts.projectRoots?.length,
+      // Records in the store, scoped or not: lets the setup card mention kept history only when there is some.
+      hasHistory: store.records.length > 0,
       mock: Boolean(opts.mock),
       storePath: store.filePath,
       autoIngestMinutes: opts.autoIngestMinutes || 0,

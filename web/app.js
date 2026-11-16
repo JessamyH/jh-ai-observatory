@@ -455,6 +455,7 @@ const compactCell = (n) => (n == null ? DASH : fmtCompact(n));
 function render(s) {
   state.lastSummary = s;
   $('#setup-prompt').hidden = !state.meta.needsSetup;
+  $('#setup-history').hidden = !state.meta.hasHistory;
   $('#app').classList.toggle('needs-setup', state.meta.needsSetup);
   $('#empty-state').hidden = state.meta.needsSetup || s.totals.turns > 0;
 

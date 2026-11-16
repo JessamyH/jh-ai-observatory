@@ -3,7 +3,7 @@
 //
 //   node observatory.js ingest [--source <name>] [--config <path>]
 //   node observatory.js serve  [--port <n>] [--config <path>]
-//   node observatory.js serve --mock  (generated demo data, port 4318)
+//   node observatory.js serve --mock  (generated demo data, port 5656)
 //   node observatory.js stats  [--granularity daily|weekly|monthly]
 //   node observatory.js sources
 //
@@ -16,7 +16,7 @@ import { runIngest } from './src/ingest.js';
 import { startServer } from './src/server.js';
 import { Store } from './src/core/store.js';
 import { summarize } from './src/core/aggregate.js';
-import { pathSettings, ensureConfig } from './src/settings.js';
+import { pathSettings, ensureConfig, resolveConfigRoots } from './src/settings.js';
 import { allSources } from './src/sources/index.js';
 import { Pricing } from './src/core/pricing.js';
 import { MOCK_ROOT, writeMockStore } from './src/mock.js';
@@ -28,8 +28,8 @@ async function main() {
   const args = parseArgs(rest);
   const configPath = args.config ? path.resolve(args.config) : path.join(ROOT, 'config.json');
   if (!args.config && (await ensureConfig(configPath))) console.log('Created config.json from config.example.json.');
-  const config = await loadConfig(configPath);
   const baseDir = path.dirname(configPath);
+  const config = resolveConfigRoots(await loadConfig(configPath), baseDir);
   const storePath = config.storePath
     ? path.resolve(baseDir, config.storePath)
     : path.join(ROOT, 'data', 'store.json');
@@ -94,29 +94,37 @@ async function cmdServe({ configPath, config, baseDir, storePath, port, noIngest
   // unchanged source files are fingerprinted and skipped entirely.
   const ingest = noIngest ? null : () => runIngest({ config, baseDir, storePath });
 
-  if (ingest) {
-    process.stdout.write('Refreshing usage data... ');
-    const t0 = Date.now();
-    try {
-      const { merged, needsSetup } = await ingest();
-      console.log(needsSetup ? 'waiting for detection directories in Settings.' : merged ? `done in ${Date.now() - t0}ms (+${merged.added} new, ${merged.total} turns)` : 'no enabled sources.');
-    } catch (err) {
-      console.log(`failed: ${err.message}`);
+  // Runs only once the port is bound, so a second instance never writes the store.
+  const prepare = async () => {
+    if (ingest) {
+      process.stdout.write('Refreshing usage data... ');
+      const t0 = Date.now();
+      try {
+        const { merged, needsSetup } = await ingest();
+        console.log(needsSetup ? 'waiting for detection directories in Settings.' : merged ? `done in ${Date.now() - t0}ms (+${merged.added} new, ${merged.total} turns)` : 'no enabled sources.');
+      } catch (err) {
+        console.log(`failed: ${err.message}`);
+      }
     }
-  }
 
-  const store = new Store(storePath);
-  await store.load();
-  if (store.records.length === 0) {
-    console.log('Note: the store is empty. Check your source paths in config.json.\n');
-  }
+    if (!config.projectRoots?.length) {
+      console.log('No project directories yet. Add them in Settings → Detection directories.\n');
+      return;
+    }
+    const store = new Store(storePath);
+    await store.load();
+    if (store.records.length === 0) {
+      console.log('Note: the store is empty. Check your source paths in config.json.\n');
+    }
+  };
 
   await startServer({
     settings: pathSettings({ config, configPath, baseDir }),
     storePath,
     ingest,
+    prepare,
     autoIngestMinutes: srv.autoIngestMinutes != null ? srv.autoIngestMinutes : 5,
-    port: port || srv.port || 4317,
+    port: port || srv.port || 5858,
     host: srv.host || '127.0.0.1',
     display: config.display || null,
     pricingOverrides: config.pricingOverrides || null,
@@ -132,12 +140,15 @@ async function cmdServeMock({ config, port }) {
   // Dates end "today", so regenerate once the day rolls over; a long-running
   // server would otherwise drift out of the default "last 30 days" view.
   let generatedFor = new Date().toDateString();
-  await writeMockStore(storePath, { pricing });
-  setInterval(() => {
-    if (new Date().toDateString() === generatedFor) return;
-    generatedFor = new Date().toDateString();
-    writeMockStore(storePath, { pricing }).catch((err) => console.log(`Mock refresh failed: ${err.message}`));
-  }, 60 * 60 * 1000).unref();
+  // Runs only once the port is bound, so a second instance never rewrites the mock store.
+  const prepare = async () => {
+    await writeMockStore(storePath, { pricing });
+    setInterval(() => {
+      if (new Date().toDateString() === generatedFor) return;
+      generatedFor = new Date().toDateString();
+      writeMockStore(storePath, { pricing }).catch((err) => console.log(`Mock refresh failed: ${err.message}`));
+    }, 60 * 60 * 1000).unref();
+  };
   const roots = { projectRoots: [MOCK_ROOT], availableRoots: [MOCK_ROOT] };
   await startServer({
     settings: {
@@ -146,7 +157,8 @@ async function cmdServeMock({ config, port }) {
     },
     storePath,
     mock: true,
-    port: port || 4318,
+    prepare,
+    port: port || 5656,
     host: srv.host || '127.0.0.1',
     display: config.display || null,
     pricingOverrides: config.pricingOverrides || null,
@@ -244,7 +256,7 @@ function printHelp() {
 Usage:
   node observatory.js ingest [--source <name>]   Collect usage from all enabled sources
   node observatory.js serve  [--port <n>]        Start the local dashboard
-  node observatory.js serve --mock               Demo dashboard with generated data (port 4318)
+  node observatory.js serve --mock               Demo dashboard with generated data (port 5656)
   node observatory.js stats  [--granularity ...] Print a summary to the terminal
   node observatory.js sources                    List registered sources
 
