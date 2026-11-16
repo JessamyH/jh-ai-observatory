@@ -89,7 +89,7 @@ git clone https://github.com/JessamyH/jh-ai-observatory.git
 cd jh-ai-observatory
 
 npm run serve        # collect usage and start the dashboard
-#   -> http://127.0.0.1:4317
+#   -> http://127.0.0.1:5858
 ```
 
 1. On first run, `config.json` is created from `config.example.json`
@@ -101,7 +101,7 @@ On macOS you can also double-click **Launch Observatory.command** in Finder.
 ### Try it with demo data
 
 ```bash
-npm run demo         # -> http://127.0.0.1:4318
+npm run demo         # -> http://127.0.0.1:5656
 ```
 
 This serves 90 days of generated usage and never reads your logs, so it's safe for demos and screenshots. **Launch Mock Data.command** does the same thing on macOS.

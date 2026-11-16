@@ -14,6 +14,21 @@ export async function ensureConfig(configPath) {
   }
 }
 
+/**
+ * Resolve hand-edited projectRoots / availableProjectRoots (`~/…` or relative to
+ * config.json) to absolute paths, matching what Settings → Save writes. Mutates
+ * and returns `config`; the file on disk is left unchanged.
+ */
+export function resolveConfigRoots(config, baseDir) {
+  for (const key of ['projectRoots', 'availableProjectRoots']) {
+    if (!Array.isArray(config[key])) continue;
+    config[key] = [...new Set(config[key]
+      .filter((p) => typeof p === 'string' && p.trim())
+      .map((p) => resolvePath(p.trim(), baseDir)))];
+  }
+  return config;
+}
+
 export function pathSettings({ config, configPath, baseDir }) {
   return {
     get() {

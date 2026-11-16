@@ -14,7 +14,7 @@ async function main() {
   const host = config.server?.host || '127.0.0.1';
   // --mock launches the demo dashboard (generated data) on its own port and store.
   const mock = process.argv.includes('--mock');
-  const port = mock ? 4318 : config.server?.port || 4317;
+  const port = mock ? 5656 : config.server?.port || 5858;
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid server port in config.json.');
   const browserHost = host === '0.0.0.0' ? '127.0.0.1' : host === '::' ? '::1' : host;
   const address = browserHost.includes(':') && !browserHost.startsWith('[') ? `[${browserHost}]` : browserHost;

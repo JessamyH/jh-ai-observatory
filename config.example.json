@@ -11,7 +11,7 @@
   "pricingOverrides": {},
   "server": {
     "host": "127.0.0.1",
-    "port": 4317,
+    "port": 5858,
     "autoIngestMinutes": 5
   },
   "projectRoots": [],
